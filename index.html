@@ -7,5 +7,10 @@
 </head>
 <body>
   <p>Websocket example</p>
+  <script>
+    const websocketProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const websocket = new WebSocket(`${websocketProtocol}://${window.location.host}`);
+    websocket.onmessage = (event) => console.log(event.data)
+  </script>
 </body>
 </html>
