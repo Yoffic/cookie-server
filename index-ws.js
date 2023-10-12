@@ -10,6 +10,14 @@ app.get('/', (req, res) => {
 server.on('request', app);
 server.listen(PORT, () => console.log('server started on port 3000'));
 
+process.on('SIGINT', () => {
+  console.log('sigint');
+  wss.clients.forEach(function each(client) {
+    client.close();
+  });
+  server.close(shutdownDB);
+});
+
 /** Begin websocket */
 const WebSocketServer = require('ws').Server;
 
@@ -25,6 +33,10 @@ wss.on('connection', function connection(ws) {
   if (ws.readyState === ws.OPEN) {
     ws.send('Hey, welcome to the cookie smart server!');
   }
+
+  db.run(`INSERT INTO visitors (count, time)
+    VALUES (${clientsCounter}, datetime('now'))
+  `);
 
   ws.on('close', function close() {
     wss.broadcast(`Current visitors: ${clientsCounter}`);
@@ -47,4 +59,33 @@ wss.broadcast = function broadcast(data) {
     client.send(data);
   });
 };
-/** End Websocket **/
+/** End websocket **/
+
+/** Begin database */
+const sqlite = require('sqlite3');
+const db = new sqlite.Database(':memory:');
+
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE visitors (
+      count INTEGER,
+      time TEXT
+    )
+  `);
+});
+
+const getCounts = () => {
+  db.each('SELECT * FROM visitors', (err, row) => {
+    if (err) {
+      console.error(err);
+    }
+
+    console.log(row);
+  });
+};
+
+function shutdownDB() {
+  getCounts();
+  console.log('Shutting down DB');
+  db.close();
+}
